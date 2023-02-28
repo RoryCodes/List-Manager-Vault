@@ -174,557 +174,557 @@
 </body>
 
 <script>
-/**
- * These functions will automatically be injected into every page that is loaded with the AutoTools Web Screen action in Tasker.
- * You can use them freely in your own web screens! :)
- * If you want you can copy these to your web screen for easy testing on your PC.
- * Only the functions that call AutoToolsAndroid functions will not work on your PC, like the AutoTools.say function for example.
- */
+  /**
+   * These functions will automatically be injected into every page that is loaded with the AutoTools Web Screen action in Tasker.
+   * You can use them freely in your own web screens! :)
+   * If you want you can copy these to your web screen for easy testing on your PC.
+   * Only the functions that call AutoToolsAndroid functions will not work on your PC, like the AutoTools.say function for example.
+   */
 
-/**
- * Create base AutoTools object that will contain everything else
- */
-var AutoTools = {};
+  /**
+   * Create base AutoTools object that will contain everything else
+   */
+  var AutoTools = {};
 
-/**
- * Send an AutoApps command from JavaScript.
- * @param {string} command - The command you want to send
- * @param {string} [prefix] - An optional prefix that will be prepended to the command. If it exists command will have the prefix=:=command format
- * @param {boolean} [hapticFeedback] - If true, will perform a short vibration with the command
- */
-AutoTools.sendCommand = function (command, prefix, hapticFeedback) {
-  if (!command) {
-    return;
-  }
-  if (!prefix) {
-    prefix = null;
-  }
-  console.log("Sending command: " + command + ";" + prefix);
-  // AutoToolsAndroid.sendCommand(command, prefix, hapticFeedback);
-};
-/**
- * Check if the value of a Web Screen Variable was set from Tasker
- * @param {string} value - Name of the variable you want to check
- */
-AutoTools.isSet = (value) => {
-  value = window[value];
-  if (value === undefined || value === null) {
-    return false;
-  }
-  var toClass = {}.toString.call(value);
-  if (toClass == "[object Boolean]") {
-    return true;
-  }
-  return toClass == "[object String]";
-};
-/**
- * Set the value of a Web Screen variable if it hasn't been set already from Tasker
- * @param {string} variable - The name of the variable you want to set
- * @param {string} value - The value you want to set if it hasn't been set from Tasker
- */
-AutoTools.setDefault = (variable, value) => {
-  if (!AutoTools.isSet(variable)) {
-    window[variable] = value;
-  }
-};
-/**
- * As above but for setting multiple values
- * @param {Object} values - Object to set default values of.
- * For example, using
- * AutoTools.setDefault("title","My Title");
- * AutoTools.setDefault("text","my text");
- * Is the same as using
- * AutoTools.setDefaultValues({
-    "title": "My Title",
-    "text":"my text"
-   });
- */
-AutoTools.setDefaultValues = (values) => {
-  for (var varName in values) {
-    var value = values[varName];
-    AutoTools.setDefault(varName, value);
-  }
-};
-
-// checks if values set by Tasker
-AutoTools.setDefaultValues({
-  prefix: "listManager",
-  lists:
-    '[{"name":"Your first list","items":["Item one"]},{"name":"Your second list"}]',
-  localBackup: true
-});
-
-// DOM Element constants
-const navDrawer = document.getElementById("nav__drawer");
-const navDrawerLinkList = document.getElementById("nav__drawer-linklist");
-const localBackupToggle = document.getElementById("toggle__local-backup");
-const headerTitle = document.getElementById("header__title");
-const mainList = document.getElementById("main__list");
-const footerInput = document.getElementById("footer__input-text-add");
-const dialog = document.getElementById("dialog");
-const dialogButtonRight = document.getElementById("dialog__button-right");
-const dialogTextInput = document.getElementById("dialog__text-input");
-const dialogTextLabel = document.getElementById("dialog__text-label");
-const dialogTextSupportingPrimary = document.getElementById(
-  "dialog__text-supporting-primary"
-);
-const dialogTextSupportingSecondary = document.getElementById(
-  "dialog__text-supporting-secondary"
-);
-const toast = document.getElementById("toast");
-var itemToEdit = null;
-
-class List {
-  constructor(name, items = []) {
-    this.name = name;
-    this.items = items;
-    return this;
-  }
-
-  addItem(itemName) {
-    this.items.push(itemName);
-    return this;
-  }
-
-  removeItem(itemName) {
-    if (this.items.length === 0) {
-      return "No items to remove";
+  /**
+   * Send an AutoApps command from JavaScript.
+   * @param {string} command - The command you want to send
+   * @param {string} [prefix] - An optional prefix that will be prepended to the command. If it exists command will have the prefix=:=command format
+   * @param {boolean} [hapticFeedback] - If true, will perform a short vibration with the command
+   */
+  AutoTools.sendCommand = function (command, prefix, hapticFeedback) {
+    if (!command) {
+      return;
     }
-    const index = this.items.findIndex((item) => item === itemName);
-    if (index === -1) {
-      return "Item does not exist";
+    if (!prefix) {
+      prefix = null;
     }
-    this.items.splice(index, 1);
-    return this;
-  }
-
-  editItem(oldItemName, newItemName) {
-    const index = this.items.findIndex((item) => item === oldItemName);
-    if (index === -1) {
-      return "Item does not exist";
-    }
-    this.items.splice(index, 1, newItemName);
-    return this;
-  }
-
-  getItemIndex(itemName) {
-    const index = this.items.findIndex((item) => item === itemName);
-    if (index === -1) {
-      return "Item does not exist";
-    }
-    return index;
-  }
-
-  insertItemInPosition(itemName, index) {
-    this.items.splice(index, 0, itemName);
-    return this;
-  }
-}
-
-class Vault {
-  constructor() {
-    this.lists = [];
-    return this;
-  }
-
-  addList(list) {
-    this.lists.push(list);
-    return this;
-  }
-
-  addLists(listArray) {
-    listArray.forEach((list) => {
-      this.lists.push(list);
-    });
-    return this;
-  }
-
-  removeListByName(listName) {
-    const index = this.lists.findIndex((List) => List.name === listName);
-    if (index === -1) {
-      return "List not found";
-    }
-    this.lists.splice(index, 1);
-    return this;
-  }
-
-  getListByName(listName) {
-    const list = this.lists.find((List) => List.name === listName);
-    return list;
-  }
-
-  getFirstList() {
-    return this.lists[0];
-  }
-
-  getListIndex(listName) {
-    const index = this.lists.findIndex((List) => List.name === listName);
-    if (index === -1) {
-      return "List not found";
-    }
-    return index;
-  }
-
-  insertListInPosition(list, index) {
-    this.lists.splice(index, 0, list);
-    return this;
-  }
-}
-
-// initializes page
-var vault = new Vault();
-JSON.parse(lists).forEach((list) => {
-  vault.addList(new List(list.name, list.items));
-});
-showList(vault.getFirstList().name);
-// sets local backup toggle
-localBackupToggle.checked = localBackup;
-// resets nav drawer
-resetNavDrawer();
-
-/**
- * adds item to current list
- */
-function addToList() {
-  // handles error for no input
-  if (footerInput.value === undefined || footerInput.value == "") {
-    // writes console debug message
-    let debugMsg = `Please add an item in the input`;
-    sendUpdate("errorMessage", debugMsg);
-    return;
-  }
-  // adds to main list (on screen)
-  mainList.appendChild(convertItemToListElement(footerInput.value));
-  // adds to Vault Object
-  let currentList = vault.getListByName(headerTitle.innerText);
-  currentList.addItem(footerInput.value);
-  // writes console debug message
-  let debugMsg = `Added item: "${footerInput.value}" to list: "${currentList.name}"`;
-  // AutoTools Command
-  sendUpdate("vaultUpdate", debugMsg);
-  // resets footer input
-  footerInput.value = "";
-  footerInput.parentElement.classList.remove("is-dirty");
-}
-/**
- * removes list item from current list
- * @param {element} item - list element
- */
-function removeFromList(item) {
-  // removes element from mainList
-  let listElement = item.parentElement.parentElement;
-  let listElementText =
-    item.parentElement.previousElementSibling.firstElementChild.innerText;
-  mainList.removeChild(listElement);
-  // prepares Undo function
-  "headerTitle.innerText", headerTitle.innerText;
-  let currentList = vault.getListByName(headerTitle.innerText);
-  let index = currentList.getItemIndex(listElementText);
-  let undoAction = function () {
-    // adds back into Vault Object
-    currentList.insertItemInPosition(listElementText, index);
-    // refreshes list (on screen)
-    showList(headerTitle.innerText);
-    // writes console debug message
-    let debugMsg = `Restored item: "${listElementText}" to list: "${currentList.name}"`;
-    // AutoTools Command
-    sendUpdate("vaultUpdate", debugMsg);
+    console.log("Sending command: " + command + ";" + prefix);
+    // AutoToolsAndroid.sendCommand(command, prefix, hapticFeedback);
   };
-  // removes from Vault Object
-  currentList.removeItem(listElementText);
-  // shows toast
-  toast.MaterialSnackbar.showSnackbar({
-    message: `Removed item: '${listElementText}'`,
-    actionHandler: undoAction,
-    actionText: "Undo"
+  /**
+   * Check if the value of a Web Screen Variable was set from Tasker
+   * @param {string} value - Name of the variable you want to check
+   */
+  AutoTools.isSet = (value) => {
+    value = window[value];
+    if (value === undefined || value === null) {
+      return false;
+    }
+    var toClass = {}.toString.call(value);
+    if (toClass == "[object Boolean]") {
+      return true;
+    }
+    return toClass == "[object String]";
+  };
+  /**
+   * Set the value of a Web Screen variable if it hasn't been set already from Tasker
+   * @param {string} variable - The name of the variable you want to set
+   * @param {string} value - The value you want to set if it hasn't been set from Tasker
+   */
+  AutoTools.setDefault = (variable, value) => {
+    if (!AutoTools.isSet(variable)) {
+      window[variable] = value;
+    }
+  };
+  /**
+   * As above but for setting multiple values
+   * @param {Object} values - Object to set default values of.
+   * For example, using
+   * AutoTools.setDefault("title","My Title");
+   * AutoTools.setDefault("text","my text");
+   * Is the same as using
+   * AutoTools.setDefaultValues({
+      "title": "My Title",
+      "text":"my text"
+     });
+   */
+  AutoTools.setDefaultValues = (values) => {
+    for (var varName in values) {
+      var value = values[varName];
+      AutoTools.setDefault(varName, value);
+    }
+  };
+
+  // checks if values set by Tasker
+  AutoTools.setDefaultValues({
+    prefix: "listManager",
+    lists:
+      '[{"name":"Your first list","items":["Item one"]},{"name":"Your second list"}]',
+    localBackup: true
   });
-  // writes console debug message
-  let debugMsg = `Removed item: "${listElementText}" from list: "${currentList.name}"`;
-  // AutoTools Command
-  sendUpdate("vaultUpdate", debugMsg);
-}
-/**
- * edits list item from current list
- * @param {element} item - list element
- */
-function editFromList(item) {
-  // sets title & texts
-  dialog.firstElementChild.innerText = "Edit List Item?";
-  let listItem = item.firstElementChild;
-  dialogTextSupportingPrimary.innerText =
-    "This will change the original item name of";
-  dialogTextSupportingSecondary.innerText = listItem.innerText;
-  // sets values & buttons
-  dialogTextInput.value = listItem.innerText;
-  itemToEdit = listItem;
-  dialogButtonRight.innerText = "ACCEPT EDIT";
-  dialog.showModal();
-}
-/**
- * adds new list to page
- */
-function addNewList() {
-  // sets title & texts
-  dialog.firstElementChild.innerText = "Add new list?";
-  dialogTextSupportingPrimary.innerText =
-    "This will add a new list with name entered below:";
-  dialogTextSupportingSecondary.innerText = "";
-  // sets values & buttons
-  dialogButtonRight.innerText = "ADD NEW";
-  dialog.showModal();
-}
-/**
- * edits current list's name
- * @param {string} listName - list name to edit
- */
-function editListName(listName) {
-  // sets title & texts
-  dialog.firstElementChild.innerText = "Edit list name?";
-  dialogTextSupportingPrimary.innerText =
-    "This will change the original list name of";
-  dialogTextSupportingSecondary.innerText = listName;
-  // sets values & buttons
-  dialogTextInput.value = listName;
-  dialogButtonRight.innerText = "EDIT NAME";
-  dialog.showModal();
-}
-/**
- * removes current list on page
- */
-function removeList() {
-  // handles error for last list
-  if (vault.lists.length <= 1) {
-    // writes console debug message
-    let debugMsg = `Please add another list before deleting this one`;
-    sendUpdate("errorMessage", debugMsg);
-    return;
+
+  // DOM Element constants
+  const navDrawer = document.getElementById("nav__drawer");
+  const navDrawerLinkList = document.getElementById("nav__drawer-linklist");
+  const localBackupToggle = document.getElementById("toggle__local-backup");
+  const headerTitle = document.getElementById("header__title");
+  const mainList = document.getElementById("main__list");
+  const footerInput = document.getElementById("footer__input-text-add");
+  const dialog = document.getElementById("dialog");
+  const dialogButtonRight = document.getElementById("dialog__button-right");
+  const dialogTextInput = document.getElementById("dialog__text-input");
+  const dialogTextLabel = document.getElementById("dialog__text-label");
+  const dialogTextSupportingPrimary = document.getElementById(
+    "dialog__text-supporting-primary"
+  );
+  const dialogTextSupportingSecondary = document.getElementById(
+    "dialog__text-supporting-secondary"
+  );
+  const toast = document.getElementById("toast");
+  var itemToEdit = null;
+
+  class List {
+    constructor(name, items = []) {
+      this.name = name;
+      this.items = items;
+      return this;
+    }
+
+    addItem(itemName) {
+      this.items.push(itemName);
+      return this;
+    }
+
+    removeItem(itemName) {
+      if (this.items.length === 0) {
+        return "No items to remove";
+      }
+      const index = this.items.findIndex((item) => item === itemName);
+      if (index === -1) {
+        return "Item does not exist";
+      }
+      this.items.splice(index, 1);
+      return this;
+    }
+
+    editItem(oldItemName, newItemName) {
+      const index = this.items.findIndex((item) => item === oldItemName);
+      if (index === -1) {
+        return "Item does not exist";
+      }
+      this.items.splice(index, 1, newItemName);
+      return this;
+    }
+
+    getItemIndex(itemName) {
+      const index = this.items.findIndex((item) => item === itemName);
+      if (index === -1) {
+        return "Item does not exist";
+      }
+      return index;
+    }
+
+    insertItemInPosition(itemName, index) {
+      this.items.splice(index, 0, itemName);
+      return this;
+    }
   }
-  // sets title & texts
-  dialog.firstElementChild.innerText = "Remove list?";
-  dialogTextSupportingPrimary.innerText =
-    "This will remove the list shown below:";
-  dialogTextSupportingSecondary.innerText = "";
-  // sets values & buttons
-  dialogTextInput.value = headerTitle.innerText;
-  dialogTextInput.setAttribute("disabled", true);
-  dialogButtonRight.innerText = "REMOVE";
-  dialog.showModal();
-}
-/**
- * performs various list actions
- * @param {string} buttonText - text of button
- */
-function dialogAction(buttonText) {
-  if (buttonText == "ACCEPT EDIT" && dialogTextInput.value != "") {
-    // edits list element on page
-    itemToEdit.innerText = dialogTextInput.value;
-    // edits item from Vault Object
+
+  class Vault {
+    constructor() {
+      this.lists = [];
+      return this;
+    }
+
+    addList(list) {
+      this.lists.push(list);
+      return this;
+    }
+
+    addLists(listArray) {
+      listArray.forEach((list) => {
+        this.lists.push(list);
+      });
+      return this;
+    }
+
+    removeListByName(listName) {
+      const index = this.lists.findIndex((List) => List.name === listName);
+      if (index === -1) {
+        return "List not found";
+      }
+      this.lists.splice(index, 1);
+      return this;
+    }
+
+    getListByName(listName) {
+      const list = this.lists.find((List) => List.name === listName);
+      return list;
+    }
+
+    getFirstList() {
+      return this.lists[0];
+    }
+
+    getListIndex(listName) {
+      const index = this.lists.findIndex((List) => List.name === listName);
+      if (index === -1) {
+        return "List not found";
+      }
+      return index;
+    }
+
+    insertListInPosition(list, index) {
+      this.lists.splice(index, 0, list);
+      return this;
+    }
+  }
+
+  // initializes page
+  var vault = new Vault();
+  JSON.parse(lists).forEach((list) => {
+    vault.addList(new List(list.name, list.items));
+  });
+  showList(vault.getFirstList().name);
+  // sets local backup toggle
+  localBackupToggle.checked = localBackup;
+  // resets nav drawer
+  resetNavDrawer();
+
+  /**
+   * adds item to current list
+   */
+  function addToList() {
+    // handles error for no input
+    if (footerInput.value === undefined || footerInput.value == "") {
+      // writes console debug message
+      let debugMsg = `Please add an item in the input`;
+      sendUpdate("errorMessage", debugMsg);
+      return;
+    }
+    // adds to main list (on screen)
+    mainList.appendChild(convertItemToListElement(footerInput.value));
+    // adds to Vault Object
     let currentList = vault.getListByName(headerTitle.innerText);
-    currentList.editItem(
-      dialogTextSupportingSecondary.innerText,
-      itemToEdit.innerText
-    );
+    currentList.addItem(footerInput.value);
     // writes console debug message
-    let debugMsg = `Edited item name from: "${dialogTextSupportingSecondary.innerText}" to: "${itemToEdit.innerText}" on list: "${headerTitle.innerText}"`;
+    let debugMsg = `Added item: "${footerInput.value}" to list: "${currentList.name}"`;
     // AutoTools Command
     sendUpdate("vaultUpdate", debugMsg);
-  } else if (buttonText == "EDIT NAME" && dialogTextInput.value != "") {
-    // edits list name from Vault Object
-    let currentList = vault.getListByName(headerTitle.innerText);
-    currentList.name = dialogTextInput.value;
-    // edits list name in the header
-    headerTitle.innerText = dialogTextInput.value;
-    // resets nav drawer
-    resetNavDrawer();
-    // writes console debug message
-    let debugMsg = `Edited list name from: "${dialogTextSupportingSecondary.innerText}" to: "${headerTitle.innerText}"`;
-    // AutoTools Command
-    sendUpdate("vaultUpdate", debugMsg);
-  } else if (buttonText == "REMOVE" && dialogTextInput.value != "") {
+    // resets footer input
+    footerInput.value = "";
+    footerInput.parentElement.classList.remove("is-dirty");
+  }
+  /**
+   * removes list item from current list
+   * @param {element} item - list element
+   */
+  function removeFromList(item) {
+    // removes element from mainList
+    let listElement = item.parentElement.parentElement;
+    let listElementText =
+      item.parentElement.previousElementSibling.firstElementChild.innerText;
+    mainList.removeChild(listElement);
     // prepares Undo function
-    let index = vault.getListIndex(headerTitle.innerText);
-    let list = vault.getListByName(headerTitle.innerText);
+    "headerTitle.innerText", headerTitle.innerText;
+    let currentList = vault.getListByName(headerTitle.innerText);
+    let index = currentList.getItemIndex(listElementText);
     let undoAction = function () {
       // adds back into Vault Object
-      console.log(`var list is: ${list.name}`);
-      console.log(`var index is: ${index}`);
-      vault.insertListInPosition(list, index);
+      currentList.insertItemInPosition(listElementText, index);
       // refreshes list (on screen)
-      showList(list.name);
-      // resets nav drawer
-      resetNavDrawer();
+      showList(headerTitle.innerText);
       // writes console debug message
-      let debugMsg = `Restored List: "${list.name}"`;
+      let debugMsg = `Restored item: "${listElementText}" to list: "${currentList.name}"`;
       // AutoTools Command
       sendUpdate("vaultUpdate", debugMsg);
     };
-    // remove list from Vault object
-    vault.removeListByName(headerTitle.innerText);
+    // removes from Vault Object
+    currentList.removeItem(listElementText);
     // shows toast
     toast.MaterialSnackbar.showSnackbar({
-      message: `Removed list: '${headerTitle.innerText}'`,
+      message: `Removed item: '${listElementText}'`,
       actionHandler: undoAction,
       actionText: "Undo"
     });
-    // shows first list on page
-    showList(vault.getFirstList().name);
-    // resets nav drawer
-    resetNavDrawer();
-  } else if (buttonText == "ADD NEW" && dialogTextInput.value != "") {
-    // adds new list to Vault Object
-    let newList = new List(dialogTextInput.value);
-    vault.addList(newList);
-    // shows newList on page
-    headerTitle.innerText = dialogTextInput.value;
+    // writes console debug message
+    let debugMsg = `Removed item: "${listElementText}" from list: "${currentList.name}"`;
+    // AutoTools Command
+    sendUpdate("vaultUpdate", debugMsg);
+  }
+  /**
+   * edits list item from current list
+   * @param {element} item - list element
+   */
+  function editFromList(item) {
+    // sets title & texts
+    dialog.firstElementChild.innerText = "Edit List Item?";
+    let listItem = item.firstElementChild;
+    dialogTextSupportingPrimary.innerText =
+      "This will change the original item name of";
+    dialogTextSupportingSecondary.innerText = listItem.innerText;
+    // sets values & buttons
+    dialogTextInput.value = listItem.innerText;
+    itemToEdit = listItem;
+    dialogButtonRight.innerText = "ACCEPT EDIT";
+    dialog.showModal();
+  }
+  /**
+   * adds new list to page
+   */
+  function addNewList() {
+    // sets title & texts
+    dialog.firstElementChild.innerText = "Add new list?";
+    dialogTextSupportingPrimary.innerText =
+      "This will add a new list with name entered below:";
+    dialogTextSupportingSecondary.innerText = "";
+    // sets values & buttons
+    dialogButtonRight.innerText = "ADD NEW";
+    dialog.showModal();
+  }
+  /**
+   * edits current list's name
+   * @param {string} listName - list name to edit
+   */
+  function editListName(listName) {
+    // sets title & texts
+    dialog.firstElementChild.innerText = "Edit list name?";
+    dialogTextSupportingPrimary.innerText =
+      "This will change the original list name of";
+    dialogTextSupportingSecondary.innerText = listName;
+    // sets values & buttons
+    dialogTextInput.value = listName;
+    dialogButtonRight.innerText = "EDIT NAME";
+    dialog.showModal();
+  }
+  /**
+   * removes current list on page
+   */
+  function removeList() {
+    // handles error for last list
+    if (vault.lists.length <= 1) {
+      // writes console debug message
+      let debugMsg = `Please add another list before deleting this one`;
+      sendUpdate("errorMessage", debugMsg);
+      return;
+    }
+    // sets title & texts
+    dialog.firstElementChild.innerText = "Remove list?";
+    dialogTextSupportingPrimary.innerText =
+      "This will remove the list shown below:";
+    dialogTextSupportingSecondary.innerText = "";
+    // sets values & buttons
+    dialogTextInput.value = headerTitle.innerText;
+    dialogTextInput.setAttribute("disabled", true);
+    dialogButtonRight.innerText = "REMOVE";
+    dialog.showModal();
+  }
+  /**
+   * performs various list actions
+   * @param {string} buttonText - text of button
+   */
+  function dialogAction(buttonText) {
+    if (buttonText == "ACCEPT EDIT" && dialogTextInput.value != "") {
+      // edits list element on page
+      itemToEdit.innerText = dialogTextInput.value;
+      // edits item from Vault Object
+      let currentList = vault.getListByName(headerTitle.innerText);
+      currentList.editItem(
+        dialogTextSupportingSecondary.innerText,
+        itemToEdit.innerText
+      );
+      // writes console debug message
+      let debugMsg = `Edited item name from: "${dialogTextSupportingSecondary.innerText}" to: "${itemToEdit.innerText}" on list: "${headerTitle.innerText}"`;
+      // AutoTools Command
+      sendUpdate("vaultUpdate", debugMsg);
+    } else if (buttonText == "EDIT NAME" && dialogTextInput.value != "") {
+      // edits list name from Vault Object
+      let currentList = vault.getListByName(headerTitle.innerText);
+      currentList.name = dialogTextInput.value;
+      // edits list name in the header
+      headerTitle.innerText = dialogTextInput.value;
+      // resets nav drawer
+      resetNavDrawer();
+      // writes console debug message
+      let debugMsg = `Edited list name from: "${dialogTextSupportingSecondary.innerText}" to: "${headerTitle.innerText}"`;
+      // AutoTools Command
+      sendUpdate("vaultUpdate", debugMsg);
+    } else if (buttonText == "REMOVE" && dialogTextInput.value != "") {
+      // prepares Undo function
+      let index = vault.getListIndex(headerTitle.innerText);
+      let list = vault.getListByName(headerTitle.innerText);
+      let undoAction = function () {
+        // adds back into Vault Object
+        console.log(`var list is: ${list.name}`);
+        console.log(`var index is: ${index}`);
+        vault.insertListInPosition(list, index);
+        // refreshes list (on screen)
+        showList(list.name);
+        // resets nav drawer
+        resetNavDrawer();
+        // writes console debug message
+        let debugMsg = `Restored List: "${list.name}"`;
+        // AutoTools Command
+        sendUpdate("vaultUpdate", debugMsg);
+      };
+      // remove list from Vault object
+      vault.removeListByName(headerTitle.innerText);
+      // shows toast
+      toast.MaterialSnackbar.showSnackbar({
+        message: `Removed list: '${headerTitle.innerText}'`,
+        actionHandler: undoAction,
+        actionText: "Undo"
+      });
+      // shows first list on page
+      showList(vault.getFirstList().name);
+      // resets nav drawer
+      resetNavDrawer();
+    } else if (buttonText == "ADD NEW" && dialogTextInput.value != "") {
+      // adds new list to Vault Object
+      let newList = new List(dialogTextInput.value);
+      vault.addList(newList);
+      // shows newList on page
+      headerTitle.innerText = dialogTextInput.value;
+      // clears page of previous list items
+      while (mainList.hasChildNodes()) {
+        mainList.removeChild(mainList.firstChild);
+      }
+      // resets nav drawer
+      resetNavDrawer();
+      // writes console debug message
+      let debugMsg = `Added list: "${dialogTextInput.value}"`;
+      // AutoTools Command
+      sendUpdate("vaultUpdate", debugMsg);
+    }
+    // resets dialog values
+    dialogTextSupportingSecondary.innerText = "";
+    dialogTextInput.value = "";
+    dialogTextLabel.parentElement.classList.remove("is-dirty");
+    dialogTextInput.removeAttribute("disabled");
+    dialog.close();
+  }
+  /**
+   * shows list on page
+   * @param {string} listName - list name
+   */
+  function showList(listName) {
     // clears page of previous list items
     while (mainList.hasChildNodes()) {
       mainList.removeChild(mainList.firstChild);
     }
-    // resets nav drawer
-    resetNavDrawer();
-    // writes console debug message
-    let debugMsg = `Added list: "${dialogTextInput.value}"`;
-    // AutoTools Command
-    sendUpdate("vaultUpdate", debugMsg);
+    // adds to Vault Object
+    let currentList = vault.getListByName(listName);
+    // adds list items to page
+    currentList.items.forEach((item) => {
+      mainList.appendChild(convertItemToListElement(item));
+    });
+    // updates list name on page
+    headerTitle.innerText = listName;
+    //simulate nav drawer list element click
+    navDrawer.classList.remove("is-visible");
+    if (document.querySelector(".mdl-layout__obfuscator")) {
+      document
+        .querySelector(".mdl-layout__obfuscator")
+        .classList.remove("is-visible");
+    }
   }
-  // resets dialog values
-  dialogTextSupportingSecondary.innerText = "";
-  dialogTextInput.value = "";
-  dialogTextLabel.parentElement.classList.remove("is-dirty");
-  dialogTextInput.removeAttribute("disabled");
-  dialog.close();
-}
-/**
- * shows list on page
- * @param {string} listName - list name
- */
-function showList(listName) {
-  // clears page of previous list items
-  while (mainList.hasChildNodes()) {
-    mainList.removeChild(mainList.firstChild);
+  /**
+   * resets navigation drawer
+   */
+  function resetNavDrawer() {
+    // clears nav drawer
+    while (navDrawerLinkList.hasChildNodes()) {
+      navDrawerLinkList.removeChild(navDrawerLinkList.firstChild);
+    }
+    // adds list names to nav drawer
+    vault.lists.forEach((list) => {
+      navDrawerLinkList.appendChild(createNavDrawerListElement(list.name));
+    });
   }
-  // adds to Vault Object
-  let currentList = vault.getListByName(listName);
-  // adds list items to page
-  currentList.items.forEach((item) => {
-    mainList.appendChild(convertItemToListElement(item));
-  });
-  // updates list name on page
-  headerTitle.innerText = listName;
-  //simulate nav drawer list element click
-  navDrawer.classList.remove("is-visible");
-  if (document.querySelector(".mdl-layout__obfuscator")) {
-    document
-      .querySelector(".mdl-layout__obfuscator")
-      .classList.remove("is-visible");
+  /**
+   * sends debug message of switch status
+   */
+  function localBackupChange() {
+    // let status = localBackupToggle.checked ? `checked` : `unechecked`;
+    let debugMsg = `Local Backup is now ${
+      localBackupToggle.checked ? "<b>ON</b>" : "<b>OFF</b>"
+    }`;
+    sendUpdate("localBackupChange", debugMsg);
   }
-}
-/**
- * resets navigation drawer
- */
-function resetNavDrawer() {
-  // clears nav drawer
-  while (navDrawerLinkList.hasChildNodes()) {
-    navDrawerLinkList.removeChild(navDrawerLinkList.firstChild);
+  /**
+   * sends AutoTools Command and console debug message
+   * @param {string} debugMsg - message for console.debug
+   */
+  function sendUpdate(type, debugMsg) {
+    AutoTools.sendCommand(
+      `${type}=:=${localBackupToggle.checked}=:=${
+        type == "errorMessage" || type == "localBackupChange"
+          ? debugMsg
+          : JSON.stringify(vault)
+      }`,
+      prefix
+    );
+    console.debug(debugMsg);
   }
-  // adds list names to nav drawer
-  vault.lists.forEach((list) => {
-    navDrawerLinkList.appendChild(createNavDrawerListElement(list.name));
-  });
-}
-/**
- * sends debug message of switch status
- */
-function localBackupChange() {
-  // let status = localBackupToggle.checked ? `checked` : `unechecked`;
-  let debugMsg = `Local Backup is now ${
-    localBackupToggle.checked ? "<b>ON</b>" : "<b>OFF</b>"
-  }`;
-  sendUpdate("localBackupChange", debugMsg);
-}
-/**
- * sends AutoTools Command and console debug message
- * @param {string} debugMsg - message for console.debug
- */
-function sendUpdate(type, debugMsg) {
-  AutoTools.sendCommand(
-    `${type}=:=${localBackupToggle.checked}=:=${
-      type == "errorMessage" || type == "localBackupChange"
-        ? debugMsg
-        : JSON.stringify(vault)
-    }`,
-    prefix
-  );
-  console.debug(debugMsg);
-}
-/**
- * creates mdl list item with name as button and delete icon button
- * @param {string} listItem new list item
- * @returns {Element}
- */
-function convertItemToListElement(listItem) {
-  // Text node
-  let textNode = document.createTextNode(listItem);
-  // Outter Div of Text
-  let outterDiv = document.createElement("div");
-  outterDiv.appendChild(textNode);
-  // First Span containing Content
-  let spanContent = document.createElement("span");
-  spanContent.className =
-    "mdl-list__item-primary-content mdl-button mdl-js-button mdl-js-ripple-effect auto_height left_align normal_height my-mixed_case";
-  spanContent.setAttribute("style", "font-size:16px; letter-spacing:.04em;");
-  spanContent.onclick = function () {
-    editFromList(this);
-  };
-  spanContent.appendChild(outterDiv);
-  componentHandler.upgradeElement(spanContent);
-  // Icon Text Node
-  let iconTextNode = document.createTextNode("delete_sweep");
-  // Icon
-  let icon = document.createElement("i");
-  icon.className = "material-icons";
-  icon.appendChild(iconTextNode);
-  componentHandler.upgradeElement(icon);
-  // Icon Button
-  let button = document.createElement("button");
-  button.className = "mdl-button mdl-js-button mdl-button--icon";
-  button.onclick = function () {
-    removeFromList(this);
-  };
-  button.appendChild(icon);
-  componentHandler.upgradeElement(button);
-  // Second Span containing Icon Button
-  let spanIcon = document.createElement("span");
-  spanIcon.className = "mdl-list__item-secondary-action";
-  spanIcon.appendChild(button);
-  componentHandler.upgradeElement(spanIcon);
-  // List Element
-  let listElement = document.createElement("li");
-  listElement.className = "mdl-list__item";
-  listElement.appendChild(spanContent);
-  listElement.appendChild(spanIcon);
-  componentHandler.upgradeElement(listElement);
-  // return list element
-  return listElement;
-}
-/**
- * creates a nav drawer list element
- * @param {string} listName - list name
- * @returns {Element}
- */
-function createNavDrawerListElement(listName) {
-  // text node
-  let textNode = document.createTextNode(listName);
-  // link element
-  let linkElement = document.createElement("a");
-  linkElement.onclick = function () {
-    showList(this.innerText);
-  };
-  linkElement.className = "mdl-navigation__link";
-  linkElement.appendChild(textNode);
-  componentHandler.upgradeElement(linkElement);
-  return linkElement;
-}
+  /**
+   * creates mdl list item with name as button and delete icon button
+   * @param {string} listItem new list item
+   * @returns {Element}
+   */
+  function convertItemToListElement(listItem) {
+    // Text node
+    let textNode = document.createTextNode(listItem);
+    // Outter Div of Text
+    let outterDiv = document.createElement("div");
+    outterDiv.appendChild(textNode);
+    // First Span containing Content
+    let spanContent = document.createElement("span");
+    spanContent.className =
+      "mdl-list__item-primary-content mdl-button mdl-js-button mdl-js-ripple-effect auto_height left_align normal_height my-mixed_case";
+    spanContent.setAttribute("style", "font-size:16px; letter-spacing:.04em;");
+    spanContent.onclick = function () {
+      editFromList(this);
+    };
+    spanContent.appendChild(outterDiv);
+    componentHandler.upgradeElement(spanContent);
+    // Icon Text Node
+    let iconTextNode = document.createTextNode("delete_sweep");
+    // Icon
+    let icon = document.createElement("i");
+    icon.className = "material-icons";
+    icon.appendChild(iconTextNode);
+    componentHandler.upgradeElement(icon);
+    // Icon Button
+    let button = document.createElement("button");
+    button.className = "mdl-button mdl-js-button mdl-button--icon";
+    button.onclick = function () {
+      removeFromList(this);
+    };
+    button.appendChild(icon);
+    componentHandler.upgradeElement(button);
+    // Second Span containing Icon Button
+    let spanIcon = document.createElement("span");
+    spanIcon.className = "mdl-list__item-secondary-action";
+    spanIcon.appendChild(button);
+    componentHandler.upgradeElement(spanIcon);
+    // List Element
+    let listElement = document.createElement("li");
+    listElement.className = "mdl-list__item";
+    listElement.appendChild(spanContent);
+    listElement.appendChild(spanIcon);
+    componentHandler.upgradeElement(listElement);
+    // return list element
+    return listElement;
+  }
+  /**
+   * creates a nav drawer list element
+   * @param {string} listName - list name
+   * @returns {Element}
+   */
+  function createNavDrawerListElement(listName) {
+    // text node
+    let textNode = document.createTextNode(listName);
+    // link element
+    let linkElement = document.createElement("a");
+    linkElement.onclick = function () {
+      showList(this.innerText);
+    };
+    linkElement.className = "mdl-navigation__link";
+    linkElement.appendChild(textNode);
+    componentHandler.upgradeElement(linkElement);
+    return linkElement;
+  }
 </script>
     
 </html>
