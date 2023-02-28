@@ -546,8 +546,6 @@
       let list = vault.getListByName(headerTitle.innerText);
       let undoAction = function () {
         // adds back into Vault Object
-        console.log(`var list is: ${list.name}`);
-        console.log(`var index is: ${index}`);
         vault.insertListInPosition(list, index);
         // refreshes list (on screen)
         showList(list.name);
@@ -570,6 +568,10 @@
       showList(vault.getFirstList().name);
       // resets nav drawer
       resetNavDrawer();
+      // writes console debug message
+      let debugMsg = `Removed list: "${dialogTextInput.value}"`;
+      // AutoTools Command
+      sendUpdate("vaultUpdate", debugMsg);
     } else if (buttonText == "ADD NEW" && dialogTextInput.value != "") {
       // adds new list to Vault Object
       let newList = new List(dialogTextInput.value);
